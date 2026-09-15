@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Models Dashboard - OpenRouter & Kilo Gateway</title>
+    <style>
+        :root {
+            --bg: #0a0a0d;
+            --card: #15151c;
+            --card-border: #22222a;
+            --text: #e0e0e0;
+            --text-muted: #888899;
+            --accent: #00d1ff;
+            --accent2: #a855f7;
+            --green: #22c55e;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --pill-bg: #1e1e27;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a24 100%);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+        }
+        header h1 {
+            font-size: 28px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+        header p { color: var(--text-muted); font-size: 14px; }
+        .meta {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .meta span {
+            background: var(--pill-bg);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .meta span strong { color: var(--text); }
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .controls label { font-size: 13px; color: var(--text-muted); margin-right: 6px; }
+        select, button {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        select:hover, button:hover {
+            border-color: var(--accent);
+            background: #1d1d28;
+        }
+        button.active { background: var(--accent); color: #000; font-weight: bold; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 16px;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(0, 209, 255, 0.1);
+            border-color: var(--accent);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .model-id { font-size: 15px; font-weight: bold; word-break: break-all; }
+        .gateway-badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .badge-openrouter { background: rgba(34, 197, 94, 0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+        .badge-kilo { background: rgba(168, 90, 247, 0.15); color: var(--accent2); border: 1px solid rgba(168,90,247,0.3); }
+        .badge-both { background: linear-gradient(135deg, rgba(0,209,255,0.15), rgba(168,90,247,0.15)); color: var(--accent); border: 1px solid rgba(0,209,255,0.3); }
+        .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+        .tag {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 8px;
+            background: var(--pill-bg);
+            color: var(--text-muted);
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-top: 1px solid var(--card-border);
+            font-size: 13px;
+        }
+        .stat-row:first-child { border-top: none; }
+        .stat-label { color: var(--text-muted); }
+        .stat-value { color: var(--text); font-weight: 600; }
+        .rank-badge {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--pill-bg);
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: bold;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+        }
+        .rank-1 { background: #fbbf24; color: #000; }
+        .rank-2 { background: #94a3b8; color: #000; }
+        .rank-3 { background: #d97706; color: #000; }
+        .tier-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+        .tier-tiny { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+        .tier-small { background: rgba(168, 50, 255, 0.15); color: var(--accent2); }
+        .tier-medium { background: rgba(245, 159, 11, 0.15); color: var(--amber); }
+        .tier-large { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+        .tier-xl { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+        .summary-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .summary-card {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 14px 24px;
+            text-align: center;
+        }
+        .summary-card .num { font-size: 28px; font-weight: bold; }
+        .summary-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
+        .loading { text-align: center; padding: 60px; color: var(--text-muted); font-size: 16px; }
+        .error { color: var(--red); text-align: center; padding: 40px; }
+
+        /* Modal for model detail */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        .modal-close {
+            float: right;
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--text-muted);
+        }
+        .modal-close:hover { color: var(--text); }
+        .modal h2 { color: var(--accent); margin-bottom: 16px; font-size: 18px; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🆓 Free Models Ranking Dashboard</h1>
+            <p>Real-time free model availability from OpenRouter API &amp; Kilo Gateway API</p>
+            <div class="meta" id="meta-info">
+                <span>⏳ Loading...</span>
+            </div>
+        </header>
+
+        <div class="summary-bar" id="summary-bar">
+            <div class="summary-card"><div class="num" id="s-or">0</div><div class="label">OpenRouter Free</div></div>
+            <div class="summary-card"><div class="num" id="s-kg">0</div><div class="label">Kilo Gateway Free</div></div>
+            <div class="summary-card"><div class="num" id="s-both">0</div><div class="label">Both Gateways</div></div>
+            <div class="summary-card"><div class="num" id="s-total">0</div><div class="label">Total Unique Free</div></div>
+        </div>
+
+        <div class="controls">
+            <label>Sort by:</label>
+            <select id="sort-select">
+                <option value="rank">Ranking (default)</option>
+                <option value="context">Context Length (desc)</option>
+                <option value="provider">Provider</option>
+                <option value="tier">Model Size Tier</option>
+                <option value="type">Model Type</option>
+            </select>
+            <label>Filter gateway:</label>
+            <button id="btn-all" class="active">All</button>
+            <button id="btn-both">Both Only</button>
+            <button id="btn-or">OpenRouter Only</button>
+            <button id="btn-kg">Kilo Only</button>
+        </div>
+
+        <div id="models-grid" class="grid">
+            <div class="loading">⏳ Memuat model gratis dari API...</div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="model-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const OPENROUTER_API = 'https://openrouter.ai/api/v1/models';
+        const KILO_GATEWAY_API = 'https://api.kilo.ai/api/openrouter/models';
+
+        // Model type detection based on ID
+        function detectType(modelId) {
+            const id = modelId.toLowerCase();
+            const name = modelId.toLowerCase();
+            if (id.includes('gemma') || id.includes('llama') || id.includes('qwen') || id.includes('mistral') || id.includes('nemotron') || id.includes('nexus') || id.includes('ling')) 
+                return 'Text';
+            if (id.includes('vision') || id.includes('vl') || id.includes('image')) return 'Vision';
+            if (id.includes('audio') || id.includes('whisper') || id.includes('tts')) return 'Audio';
+            if (id.includes('embed')) return 'Embedding';
+            if (id.includes('code') || id.includes('north-mini-code')) return 'Code';
+            if (id.includes('lyria')) return 'Music/Audio';
+            if (id.includes('content-safety') || id.includes('safety')) return 'Safety';
+            if (id.includes('reasoning')) return 'Reasoning';
+            if (id.includes('-free') || id.includes('kilo-auto')) return 'General';
+            // Default
+            return 'General';
+        }
+
+        // Get provider name from model ID
+        function getProvider(modelId) {
+            const parts = modelId.split('/');
+            if (parts.length > 1) return parts[0];
+            // For models without prefix
+            if (modelId.includes('openrouter/free')) return 'openrouter';
+            return 'unknown';
+        }
+
+        // Estimate model size tier based on name
+        function getSizeTier(modelId) {
+            const id = modelId.toLowerCase();
+            const context = ctx => ctx;
+            // Check context size hints
+            const ctxMap = {
+                '512000': 'xl',
+                '1000000': 'xl',
+                '1048576': 'xl',
+                '262144': 'large',
+                '256000': 'large',
+                '128000': 'medium',
+                '65536': 'small',
+                '200000': 'large',
+            };
+            // Heuristics
+            if (id.includes('ultra') || id.includes('550b') || id.includes('super')) return 'xl';
+            if (id.includes('large') || id.includes('n2.5') || id.includes('laguna')) return 'large';
+            if (id.includes('medium') || id.includes('nemotron-3.5')) return 'medium';
+            if (id.includes('light') || id.includes('nano') || id.includes('tiny') || id.includes('mini')) return 'small';
+            return 'medium';
+        }
+
+        // Get tier label and color
+        function getTierInfo(tier) {
+            const tiers = {
+                'xl': { label: 'XL (1M+ ctx / 50B+ params)', color: 'tier-xl' },
+                'large': { label: 'Large (256K-1M ctx)', color: 'tier-large' },
+                'medium': { label: 'Medium (64K-256K ctx)', color: 'tier-medium' },
+                'small': { label: 'Small (64K ctx)', color: 'tier-small' },
+                'tiny': { label: 'Tiny (<64K ctx)', color: 'tier-tiny' },
+            };
+            return tiers[tier] || tiers['medium'];
+        }
+
+        // Format context length
+        function formatCtx(num) {
+            if (!num || num === 0) return 'N/A';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(0) + 'K';
+            return num.toString();
+        }
+
+        // Escape HTML
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Determine if model is free
+        function isFreeModel(m) {
+            const p = m.pricing || {};
+            return (p.prompt === '0' || p.prompt === 0) && (p.completion === '0' || p.completion === 0);
+        }
+
+        // Ranking score: weighted combination
+        function calcRankScore(m, modelType, sizeTier) {
+            const ctx = parseInt(m.context_length || 0);
+            let score = 0;
+            // Context length weight
+            score += Math.log10(ctx || 1) * 10;
+            // Prefer known strong providers
+            const id = m.id.toLowerCase();
+            if (id.includes('nvidia') || id.includes('nemotron')) score += 15;
+            if (id.includes('thinkingmachines') || id.includes('inkling')) score += 10;
+            if (id.includes('poolside')) score += 8;
+            if (id.includes('inclusionai') || id.includes('ling')) score += 7;
+            if (id.includes('google') || id.includes('gemma')) score += 6;
+            if (id.includes('openrouter/free')) score += 5;
+            if (id.includes('kilo-auto') || id.includes('nex-agi') || id.includes('dots')) score += 5;
+            if (id.includes('cohere')) score += 4;
+            if (id.includes('liquid')) score += 3;
+            if (id.includes('stepfun')) score += 3;
+            return score;
+        }
+
+        let allModels = [];
+        let currentFilter = 'all';
+        let currentSort = 'rank';
+
+        async function loadData() {
+            try {
+                const [orRes, kgRes] = await Promise.all([
+                    fetch(OPENROUTER_API).then(r => r.json()),
+                    fetch(KILO_GATEWAY_API).then(r => r.json())
+                ]);
+
+                const orModels = orRes.data || [];
+                const kgModels = kgRes.data || [];
+                const orFree = orModels.filter(isFreeModel);
+                const kgFree = kgModels.filter(isFreeModel);
+
+                // Build unified list
+                const orIds = new Set(orFree.map(m => m.id));
+                const kgIds = new Set(kgFree.map(m => m.id));
+                const allIds = new Set([...orIds, ...kgIds]);
+
+                const orById = Object.fromEntries(orFree.map(m => [m.id, m]));
+                const kgById = Object.fromEntries(kgFree.map(m => [m.id, m]));
+
+                allModels = [];
+                for (const id of allIds) {
+                    const or = orById[id];
+                    const kg = kgById[id];
+                    const m = or || kg;
+                    const type = detectType(id);
+                    const provider = getProvider(id);
+                    const tier = getSizeTier(id);
+                    const ctx = parseInt(m.context_length || 0);
+                    const rankScore = calcRankScore(m, type, tier);
+                    allModels.push({
+                        id,
+                        provider,
+                        type,
+                        sizeTier: tier,
+                        context: ctx,
+                        rankScore,
+                        inOR: !!or,
+                        inKG: !!kg,
+                        inBoth: !!or && !!kg,
+                        raw: m
+                    });
+                }
+
+                // Sort by rank score for default ranking
+                allModels.sort((a, b) => b.rankScore - a.rankScore);
+
+                // Assign ranks
+                allModels.forEach((m, i) => m.rank = i + 1);
+
+                // Update summary
+                document.getElementById('s-or').textContent = orFree.length;
+                document.getElementById('s-kg').textContent = kgFree.length;
+                document.getElementById('s-both').textContent = allModels.filter(m => m.inBoth).length;
+                document.getElementById('s-total').textContent = allModels.length;
+
+                const now = new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                document.getElementById('meta-info').innerHTML = `
+                    <span>📊 Last updated: ${now}</span>
+                    <span>📡 OpenRouter API: ${orFree.length} free / ${orModels.length} total</span>
+                    <span>📡 Kilo Gateway API: ${kgFree.length} free / ${kgModels.length} total</span>
+                `;
+
+                renderModels();
+            } catch (e) {
+                document.getElementById('models-grid').innerHTML = `<div class="error">❌ Error loading data: ${e.message}<br>Silakan refresh halaman.</div>`;
+            }
+        }
+
+        function renderModels() {
+            let filtered = [...allModels];
+            if (currentFilter === 'both') filtered = filtered.filter(m => m.inBoth);
+            else if (currentFilter === 'or') filtered = filtered.filter(m => m.inOR && !m.inKG);
+            else if (currentFilter === 'kg') filtered = filtered.filter(m => m.inKG && !m.inOR);
+
+            // Sort
+            if (currentSort === 'rank') {
+                filtered.sort((a,b) => a.rank - b.rank);
+            } else if (currentSort === 'context') {
+                filtered.sort((a,b) => b.context - a.context);
+            } else if (currentSort === 'provider') {
+                filtered.sort((a,b) => a.provider.localeCompare(b.provider));
+            } else if (currentSort === 'tier') {
+                const tierOrder = {xl:0, large:1, medium:2, small:3, tiny:4};
+                filtered.sort((a,b) => (tierOrder[a.sizeTier]||5) - (tierOrder[b.sizeTier]||5));
+            } else if (currentSort === 'type') {
+                filtered.sort((a,b) => a.type.localeCompare(b.type));
+            }
+
+            const grid = document.getElementById('models-grid');
+            if (filtered.length === 0) {
+                grid.innerHTML = '<div class="loading">📭 No free models match your filter.</div>';
+                return;
+            }
+
+            grid.innerHTML = filtered.map(m => {
+                const badges = [];
+                if (m.inBoth) badges.push('<span class="gateway-badge badge-both">Both</span>');
+                else if (m.inOR) badges.push('<span class="gateway-badge badge-openrouter">OpenRouter</span>');
+                else if (m.inKG) badges.push('<span class="gateway-badge badge-kilo">Kilo</span>');
+
+                const tierInfo = getTierInfo(m.sizeTier);
+
+                const rankClass = m.rank <= 3 ? `rank-${m.rank}` : '';
+                return `
+                <div class="card" onclick="showModal('${escapeHtml(m.id)}')">
+                    <div class="card-header">
+                        <div style="display:flex;align-items:center;">
+                            <span class="rank-badge ${rankClass}">${m.rank}</span>
+                            <span class="model-id">${escapeHtml(m.id)}</span>
+                        </div>
+                        ${badges.join('')}
+                    </div>
+                    <div class="tags">
+                        <span class="tag">${escapeHtml(m.type)}</span>
+                        <span class="tag">${escapeHtml(m.provider)}</span>
+                        <span class="tag tier-badge ${tierInfo.color}">${tierInfo.label}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Context Length</span>
+                        <span class="stat-value">${formatCtx(m.context)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Pricing</span>
+                        <span class="stat-value" style="color:var(--green)">FREE • $0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Rank Score</span>
+                        <span class="stat-value">${m.rankScore.toFixed(1)}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function showModal(modelId) {
+            const m = allModels.find(x => x.id === modelId);
+            if (!m) return;
+            const tierInfo = getTierInfo(m.sizeTier);
+            const raw = m.raw;
+            const p = raw.pricing || {};
+            const arch = raw.architecture || {};
+            const tp = raw.top_provider || {};
+
+            document.getElementById('modal-body').innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h2 style="font-size:16px;word-break:break-all;">${escapeHtml(m.id)}</h2>
+                </div>
+                <div style="margin:16px 0;">
+                    <span class="tag">${escapeHtml(m.type)}</span>
+                    <span class="tag">${escapeHtml(m.provider)}</span>
+                    <span class="tag tier-badge ${tierInfo.color}">${tierInfo.label}</span>
+                </div>
+                <div class="stat-row"><span class="stat-label">Rank</span><span class="stat-value">#${m.rank}</span></div>
+                <div class="stat-row"><span class="stat-label">Context Length</span><span class="stat-value">${formatCtx(m.context)}</span></div>
+                <div class="stat-row"><span class="stat-label">Pricing</span><span class="stat-value" style="color:var(--green)">FREE ($0.00)</span></div>
+                <div class="stat-row"><span class="stat-label">Top Provider Context</span><span class="stat-value">${formatCtx(tp.context_length)}</span></div>
+                <div class="stat-row"><span class="stat-label">Max Completion Tokens</span><span class="stat-value">${tp.max_completion_tokens || 'N/A'}</span></div>
+                <div class="stat-row"><span class="stat-label">Input Modalities</span><span class="stat-value">${(arch.input_modalities||[]).join(', ') || 'text'}</span></div>
+                <div class="stat-row"><span class="stat-label">Output Modalities</span><span class="stat-value">${(arch.output_modalities||[]).join(', ') || 'text'}</span></div>
+                <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--card-border);font-size:12px;color:var(--text-muted);">
+                    🔧 Request Pricing: \$${p.request || 'N/A'}<br>
+                    🖼️ Image Pricing: \$${p.image || 'N/A'}<br>
+                    🔍 Web Search: \$${p.web_search || 'N/A'}<br>
+                    🧠 Internal Reasoning: \$${p.internal_reasoning || 'N/A'}<br>
+                    ⚡ Available on: ${(m.inOR?'OpenRouter':'')} ${m.inOR && m.inKG ? '+' : ''} ${(m.inKG?'Kilo Gateway':'')}
+                </div>
+            `;
+            document.getElementById('model-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('model-modal').style.display = 'none';
+        }
+
+        // Event listeners
+        document.getElementById('sort-select').addEventListener('change', e => {
+            currentSort = e.target.value;
+            renderModels();
+        });
+
+        document.getElementById('btn-all').addEventListener('click', () => { currentFilter='all'; updateBtnStates(); renderModels(); });
+        document.getElementById('btn-both').addEventListener('click', () => { currentFilter='both'; updateBtnStates(); renderModels(); });
+        document.getElementById('btn-or').addEventListener('click', () => { currentFilter='or'; updateBtnStates(); renderModels(); });
+        document.getElementById('btn-kg').addEventListener('click', () => { currentFilter='kg'; updateBtnStates(); renderModels(); });
+
+        function updateBtnStates() {
+            document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+            document.getElementById(currentFilter === 'all' ? 'btn-all' : currentFilter === 'both' ? 'btn-both' : currentFilter === 'or' ? 'btn-or' : 'btn-kg').classList.add('active');
+        }
+
+        // Load data on page load
+        loadData();
+
+        // Close modal on outside click
+        window.onclick = function(e) {
+            if (e.target === document.getElementById('model-modal')) closeModal();
+        };
+    </script>
+</body>
+</html>
