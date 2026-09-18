@@ -366,13 +366,30 @@
 
         async function loadData() {
             try {
-                const [orRes, kgRes] = await Promise.all([
-                    fetch(OPENROUTER_API).then(r => r.json()),
-                    fetch(KILO_GATEWAY_API).then(r => r.json())
-                ]);
+                const orRes = await fetch(OPENROUTER_API);
+                if (!orRes.ok) throw new Error(`OpenRouter API responded with ${orRes.status}`);
+                const orData = await orRes.json();
 
-                const orModels = orRes.data || [];
-                const kgModels = kgRes.data || [];
+                let kgData = { data: [] };
+                try {
+                    const kgPromise = fetch(KILO_GATEWAY_API).then(r => {
+                        if (!r.ok) throw new Error(`Kilo Gateway API responded with ${r.status}`);
+                        return r.json();
+                    });
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Kilo Gateway timeout')), 8000)
+                    );
+                    kgData = await Promise.race([kgPromise, timeoutPromise]);
+                } catch (kgErr) {
+                    console.warn('Kilo Gateway unavailable:', kgErr.message);
+                    document.getElementById('meta-info').innerHTML = `
+                        <span>⚠️ ${escapeHtml(kgErr.message)}</span>
+                        <span>📡 Showing OpenRouter data only</span>
+                    `;
+                }
+
+                const orModels = orData.data || [];
+                const kgModels = kgData.data || [];
                 const orFree = orModels.filter(isFreeModel);
                 const kgFree = kgModels.filter(isFreeModel);
 
