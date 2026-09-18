@@ -261,6 +261,7 @@
             <button id="btn-all" class="active">All</button>
             <button id="btn-or">OpenRouter</button>
             <button id="btn-kg">Kilo</button>
+            <button id="btn-config" onclick="openConfig()">⚙️ API Keys</button>
         </div>
 
         <div id="models-grid" class="grid">
@@ -273,6 +274,25 @@
         <div class="modal-content">
             <span class="modal-close" onclick="closeModal()">&times;</span>
             <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Config Modal -->
+    <div class="modal" id="config-modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeConfig()">&times;</span>
+            <h2>⚙️ API Keys</h2>
+            <div class="playground-section">
+                <h3>OpenRouter</h3>
+                <div class="playground-note">sk-... key for OpenRouter models</div>
+                <input type="password" id="or-api-key" class="test-input" placeholder="sk-or-...">
+                <div class="playground-note">Stored in browser localStorage.</div>
+                <h3 style="margin-top:16px;">Kilo</h3>
+                <div class="playground-note">Kilo API key (optional) — avoids shared rate limits</div>
+                <input type="password" id="kg-api-key" class="test-input" placeholder="kil-dev-...">
+                <div class="playground-note">Stored in browser localStorage.</div>
+                <button style="margin-top:16px;" class="test-btn" onclick="saveConfig()">Save Keys</button>
+            </div>
         </div>
     </div>
 
@@ -572,9 +592,8 @@
                 </div>
                 <div class="playground-section">
                     <h3>🧪 Mini Playground</h3>
-                    <div class="playground-note">${m.inOR ? (m.inKG ? 'Available on OpenRouter + Kilo Gateway' : 'OpenRouter only — API key needed') : 'Kilo Gateway only — no API key needed'}</div>
+                    <div class="playground-note">${m.inOR ? (m.inKG ? 'Available on OpenRouter + Kilo Gateway' : 'OpenRouter only — set key via ⚙️ API Keys') : 'Kilo Gateway only — optional: set your own Kilo key via ⚙️ API Keys'}</div>
                     <textarea id="test-message" class="test-input" rows="3" placeholder="Type a test message...">${TEST_DEFAULT_PROMPT}</textarea>
-                    ${m.inOR ? '<input type="password" id="or-key-input" class="test-input" placeholder="OpenRouter API key (sk-or-...)" style="margin-bottom:8px;">' : ''}
                     <button id="test-btn" class="test-btn" onclick="runTest('${escapeHtml(m.id)}')">Send Test</button>
                     <div class="playground-response" id="test-response">Response will appear here...</div>
                 </div>
@@ -584,6 +603,35 @@
 
         function closeModal() {
             document.getElementById('model-modal').style.display = 'none';
+        }
+
+        function openConfig() {
+            const orKey = localStorage.getItem('or-api-key') || '';
+            const kgKey = localStorage.getItem('kg-api-key') || '';
+            document.getElementById('or-api-key').value = orKey;
+            document.getElementById('kg-api-key').value = kgKey;
+            document.getElementById('config-modal').style.display = 'flex';
+        }
+
+        function closeConfig() {
+            document.getElementById('config-modal').style.display = 'none';
+        }
+
+        function saveConfig() {
+            const orKey = document.getElementById('or-api-key').value.trim();
+            const kgKey = document.getElementById('kg-api-key').value.trim();
+            if (orKey) localStorage.setItem('or-api-key', orKey); else localStorage.removeItem('or-api-key');
+            if (kgKey) localStorage.setItem('kg-api-key', kgKey); else localStorage.removeItem('kg-api-key');
+            alert('API keys saved to browser localStorage.');
+            closeConfig();
+        }
+
+        function getStoredOrKey() {
+            return localStorage.getItem('or-api-key') || '';
+        }
+
+        function getStoredKgKey() {
+            return localStorage.getItem('kg-api-key') || '';
         }
 
         async function runTest(modelId) {
@@ -603,16 +651,19 @@
             try {
                 let url, headers, body;
                 if (m.inKG && !m.inOR) {
-                    // Kilo only — no auth needed, use worker proxy for CORS
+                    // Kilo only — use worker proxy for CORS, support user's own key
+                    const kgKey = getStoredKgKey();
                     url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
-                    headers = { 'Content-Type': 'application/json' };
+                    headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
                     body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
-                } else {
-                    // OpenRouter — need key from input
+                    if (kgKey) headers['Authorization'] = `Bearer ${kgKey}`;
+                } else if (m.inOR && !m.inKG) {
+                    // OpenRouter only — get key from config or inline input
                     const keyInput = document.getElementById('or-key-input');
-                    const key = keyInput ? keyInput.value.trim() : '';
+                    const storedKey = getStoredOrKey();
+                    const key = keyInput ? (keyInput.value.trim() || storedKey) : storedKey;
                     if (!key) {
-                        respEl.innerHTML = '<span class="error">Please enter your OpenRouter API key above</span>';
+                        respEl.innerHTML = '<span class="error">Please set your OpenRouter API key via ⚙️ API Keys, or enter it below</span>';
                         btn.disabled = false;
                         btn.innerText = 'Send Test';
                         return;
@@ -620,6 +671,13 @@
                     url = 'https://openrouter.ai/api/v1/chat/completions';
                     headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
                     body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
+                } else {
+                    // Both — prefer Kilo (no key unless own key set), use worker proxy for CORS
+                    const kgKey = getStoredKgKey();
+                    url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
+                    headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+                    body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
+                    if (kgKey) headers['Authorization'] = `Bearer ${kgKey}`;
                 }
 
                 const res = await fetch(url, { method: 'POST', headers, body });
