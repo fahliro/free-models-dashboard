@@ -686,7 +686,18 @@
                 const data = await res.json();
 
                 if (data.error) {
-                    respEl.innerHTML = '<span class="error">Error: ' + (data.error.message || JSON.stringify(data.error)) + '</span>';
+                    const err = data.error;
+                    let errMsg = err.message || JSON.stringify(err);
+                    // Provider-specific error extraction
+                    if (err.metadata) {
+                        try {
+                            const raw = JSON.parse(err.metadata.raw);
+                            if (raw.error?.message) errMsg += ` | Provider: ${raw.error.message}`;
+                        } catch(e) {}
+                    }
+                    if (err.code === 429) errMsg = '(Rate Limited) ' + errMsg;
+                    if (err.code === 401 || err.code === 'auth_required') errMsg = '(Authentication failed — check API key) ' + errMsg;
+                    respEl.innerHTML = '<span class="error">Error ' + (err.code || 'unknown') + ': ' + errMsg + '</span>';
                 } else {
                     const text = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
                     const usage = data.usage || {};
