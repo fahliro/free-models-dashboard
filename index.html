@@ -334,7 +334,8 @@
         // Determine if model is free
         function isFreeModel(m) {
             const p = m.pricing || {};
-            return (p.prompt === '0' || p.prompt === 0) && (p.completion === '0' || p.completion === 0);
+            const isZero = v => v === '0' || v === 0 || v === '0.000000000000';
+            return isZero(p.prompt) && isZero(p.completion);
         }
 
         // Ranking score: weighted combination
