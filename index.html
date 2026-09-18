@@ -590,6 +590,7 @@
                     🧠 Internal Reasoning: \$${p.internal_reasoning || 'N/A'}<br>
                     ⚡ Available on: ${(m.inOR?'OpenRouter':'')} ${m.inOR && m.inKG ? '+' : ''} ${(m.inKG?'Kilo Gateway':'')}
                 </div>
+                ${currentFilter !== 'all' ? `
                 <div class="playground-section">
                     <h3>🧪 Mini Playground</h3>
                     <div class="playground-note">${m.inOR ? (m.inKG ? 'Available on OpenRouter + Kilo Gateway' : 'OpenRouter only — set key via ⚙️ API Keys') : 'Kilo Gateway only — optional: set your own Kilo key via ⚙️ API Keys'}</div>
@@ -597,6 +598,7 @@
                     <button id="test-btn" class="test-btn" onclick="runTest('${escapeHtml(m.id)}')">Send Test</button>
                     <div class="playground-response" id="test-response">Response will appear here...</div>
                 </div>
+                ` : ''}
             `;
             document.getElementById('model-modal').style.display = 'flex';
         }
