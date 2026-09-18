@@ -574,6 +574,7 @@
                     <h3>🧪 Mini Playground</h3>
                     <div class="playground-note">${m.inOR ? (m.inKG ? 'Available on OpenRouter + Kilo Gateway' : 'OpenRouter only — API key needed') : 'Kilo Gateway only — no API key needed'}</div>
                     <textarea id="test-message" class="test-input" rows="3" placeholder="Type a test message...">${TEST_DEFAULT_PROMPT}</textarea>
+                    ${m.inOR ? '<input type="password" id="or-key-input" class="test-input" placeholder="OpenRouter API key (sk-or-...)" style="margin-bottom:8px;">' : ''}
                     <button id="test-btn" class="test-btn" onclick="runTest('${escapeHtml(m.id)}')">Send Test</button>
                     <div class="playground-response" id="test-response">Response will appear here...</div>
                 </div>
@@ -602,21 +603,22 @@
             try {
                 let url, headers, body;
                 if (m.inKG && !m.inOR) {
-                    // Kilo only — no auth needed, but use worker proxy for CORS
+                    // Kilo only — no auth needed, use worker proxy for CORS
                     url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
                     headers = { 'Content-Type': 'application/json' };
-                    body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
-                } else if (m.inOR && !m.inKG) {
-                    // OpenRouter only — need key
-                    const key = prompt('OpenRouter API key (sk-or-...):');
-                    if (!key) { btn.disabled = false; btn.innerText = 'Send Test'; return; }
-                    url = 'https://openrouter.ai/api/v1/chat/completions';
-                    headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key.trim()}` };
                     body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
                 } else {
-                    // Both — prefer Kilo (no key), use worker proxy for CORS
-                    url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
-                    headers = { 'Content-Type': 'application/json' };
+                    // OpenRouter — need key from input
+                    const keyInput = document.getElementById('or-key-input');
+                    const key = keyInput ? keyInput.value.trim() : '';
+                    if (!key) {
+                        respEl.innerHTML = '<span class="error">Please enter your OpenRouter API key above</span>';
+                        btn.disabled = false;
+                        btn.innerText = 'Send Test';
+                        return;
+                    }
+                    url = 'https://openrouter.ai/api/v1/chat/completions';
+                    headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
                     body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
                 }
 
