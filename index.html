@@ -651,36 +651,39 @@
             respEl.innerHTML = 'Loading...';
 
             try {
-                let url, headers, body;
-                if (m.inKG && !m.inOR) {
-                    // Kilo only — use worker proxy for CORS, support user's own key
-                    const kgKey = getStoredKgKey();
-                    url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
-                    headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-                    body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
-                    if (kgKey) headers['Authorization'] = `Bearer ${kgKey}`;
-                } else if (m.inOR && !m.inKG) {
-                    // OpenRouter only — get key from config or inline input
-                    const keyInput = document.getElementById('or-key-input');
-                    const storedKey = getStoredOrKey();
-                    const key = keyInput ? (keyInput.value.trim() || storedKey) : storedKey;
-                    if (!key) {
-                        respEl.innerHTML = '<span class="error">Please set your OpenRouter API key via ⚙️ API Keys, or enter it below</span>';
-                        btn.disabled = false;
-                        btn.innerText = 'Send Test';
-                        return;
-                    }
-                    url = 'https://openrouter.ai/api/v1/chat/completions';
-                    headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
-                    body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
-                } else {
-                    // Both — prefer Kilo (no key unless own key set), use worker proxy for CORS
-                    const kgKey = getStoredKgKey();
-                    url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
-                    headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-                    body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
-                    if (kgKey) headers['Authorization'] = `Bearer ${kgKey}`;
+            let url, headers, body, gateway = '';
+            if (m.inKG && !m.inOR) {
+                // Kilo only — use worker proxy for CORS, support user's own key
+                const kgKey = getStoredKgKey();
+                url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
+                headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+                body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
+                if (kgKey) headers['Authorization'] = `Bearer ${kgKey}`;
+                gateway = 'Kilo';
+            } else if (m.inOR && !m.inKG) {
+                // OpenRouter only — get key from config or inline input
+                const keyInput = document.getElementById('or-key-input');
+                const storedKey = getStoredOrKey();
+                const key = keyInput ? (keyInput.value.trim() || storedKey) : storedKey;
+                if (!key) {
+                    respEl.innerHTML = '<span class="error">Please set your OpenRouter API key via ⚙️ API Keys, or enter it below</span>';
+                    btn.disabled = false;
+                    btn.innerText = 'Send Test';
+                    return;
                 }
+                url = 'https://openrouter.ai/api/v1/chat/completions';
+                headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
+                body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
+                gateway = 'OpenRouter';
+            } else {
+                // Both — prefer Kilo (no key unless own key set), use worker proxy for CORS
+                const kgKey = getStoredKgKey();
+                url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
+                headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+                body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
+                if (kgKey) headers['Authorization'] = `Bearer ${kgKey}`;
+                gateway = 'Kilo';
+            }
 
                 const res = await fetch(url, { method: 'POST', headers, body });
                 const data = await res.json();
@@ -697,7 +700,7 @@
                     }
                     if (err.code === 429) errMsg = '(Rate Limited) ' + errMsg;
                     if (err.code === 401 || err.code === 'auth_required') errMsg = '(Authentication failed — check API key) ' + errMsg;
-                    respEl.innerHTML = '<span class="error">Error ' + (err.code || 'unknown') + ': ' + errMsg + '</span>';
+                    respEl.innerHTML = '<span class="error">[' + gateway + '] Error ' + (err.code || 'unknown') + ': ' + errMsg + '</span>';
                 } else {
                     const text = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
                     const usage = data.usage || {};
