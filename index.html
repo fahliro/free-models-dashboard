@@ -175,6 +175,24 @@
         .summary-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
         .loading { text-align: center; padding: 60px; color: var(--text-muted); font-size: 16px; }
         .error { color: var(--red); text-align: center; padding: 40px; }
+        .playground-btn {
+            display: inline-block;
+            background: var(--accent2);
+            color: #000;
+            font-weight: bold;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            margin-top: 6px;
+            border: 1px solid var(--accent2);
+            transition: all 0.2s;
+        }
+        .playground-btn:hover {
+            background: #b960ff;
+            transform: translateY(-1px);
+            box-shadow: 0 0 12px rgba(168,90,247,0.4);
+        }
 
         /* Modal for model detail */
         .modal {
@@ -211,6 +229,7 @@
         <header>
             <h1>🆓 Free Models Ranking Dashboard</h1>
             <p>Real-time free model availability from OpenRouter API &amp; Kilo Gateway API</p>
+            <a href="playground.html" class="playground-btn">🧪 Mini Playground</a>
             <div class="meta" id="meta-info">
                 <span>⏳ Loading...</span>
             </div>
