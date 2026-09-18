@@ -602,8 +602,8 @@
             try {
                 let url, headers, body;
                 if (m.inKG && !m.inOR) {
-                    // Kilo only — no auth needed
-                    url = 'https://api.kilo.ai/api/gateway/v1/chat/completions';
+                    // Kilo only — no auth needed, but use worker proxy for CORS
+                    url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
                     headers = { 'Content-Type': 'application/json' };
                     body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
                 } else if (m.inOR && !m.inKG) {
@@ -614,8 +614,8 @@
                     headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key.trim()}` };
                     body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
                 } else {
-                    // Both — prefer Kilo (no key needed)
-                    url = 'https://api.kilo.ai/api/gateway/v1/chat/completions';
+                    // Both — prefer Kilo (no key), use worker proxy for CORS
+                    url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
                     headers = { 'Content-Type': 'application/json' };
                     body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
                 }
