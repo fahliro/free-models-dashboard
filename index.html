@@ -222,6 +222,14 @@
         }
         .modal-close:hover { color: var(--text); }
         .modal h2 { color: var(--accent); margin-bottom: 16px; font-size: 18px; word-break: break-all; }
+        .playground-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--card-border); }
+        .playground-section h3 { color: var(--accent2); font-size: 15px; margin-bottom: 12px; }
+        .test-input { width: 100%; background: #0d0d12; border: 1px solid var(--card-border); color: var(--text); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 14px; resize: vertical; }
+        .test-btn { background: var(--accent); color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
+        .test-btn:hover { background: #33dfff; }
+        .test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .playground-note { color: var(--text-muted); font-size: 11px; margin-bottom: 8px; }
+        .playground-response { margin-top: 12px; padding: 12px; background: #0a0a0d; border: 1px solid var(--card-border); border-radius: 8px; font-size: 13px; line-height: 1.5; min-height: 60px; }
     </style>
 </head>
 <body>
@@ -229,7 +237,6 @@
         <header>
             <h1>🆓 Free Models Ranking Dashboard</h1>
             <p>Real-time free model availability from OpenRouter API &amp; Kilo Gateway API</p>
-            <a href="playground.html" class="playground-btn">🧪 Mini Playground</a>
             <div class="meta" id="meta-info">
                 <span>⏳ Loading...</span>
             </div>
@@ -272,6 +279,7 @@
     <script>
         const OPENROUTER_API = 'https://openrouter.ai/api/v1/models';
         const KILO_GATEWAY_API = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/models';
+        const TEST_DEFAULT_PROMPT = 'Say hi in 5 words or less.';
 
         // Model type detection based on ID
         function detectType(modelId) {
@@ -562,12 +570,73 @@
                     🧠 Internal Reasoning: \$${p.internal_reasoning || 'N/A'}<br>
                     ⚡ Available on: ${(m.inOR?'OpenRouter':'')} ${m.inOR && m.inKG ? '+' : ''} ${(m.inKG?'Kilo Gateway':'')}
                 </div>
+                <div class="playground-section">
+                    <h3>🧪 Mini Playground</h3>
+                    <div class="playground-note">${m.inOR ? (m.inKG ? 'Available on OpenRouter + Kilo Gateway' : 'OpenRouter only — API key needed') : 'Kilo Gateway only — no API key needed'}</div>
+                    <textarea id="test-message" class="test-input" rows="3" placeholder="Type a test message...">${TEST_DEFAULT_PROMPT}</textarea>
+                    <button id="test-btn" class="test-btn" onclick="runTest('${escapeHtml(m.id)}')">Send Test</button>
+                    <div class="playground-response" id="test-response">Response will appear here...</div>
+                </div>
             `;
             document.getElementById('model-modal').style.display = 'flex';
         }
 
         function closeModal() {
             document.getElementById('model-modal').style.display = 'none';
+        }
+
+        async function runTest(modelId) {
+            const m = allModels.find(x => x.id === modelId);
+            if (!m) return;
+
+            const btn = document.getElementById('test-btn');
+            const respEl = document.getElementById('test-response');
+            const msg = document.getElementById('test-message').value.trim();
+
+            if (!msg) { respEl.innerHTML = '<span class="error">Type a message first</span>'; return; }
+
+            btn.disabled = true;
+            btn.innerText = 'Testing...';
+            respEl.innerHTML = 'Loading...';
+
+            try {
+                let url, headers, body;
+                if (m.inKG && !m.inOR) {
+                    // Kilo only — no auth needed
+                    url = 'https://api.kilo.ai/api/gateway/v1/chat/completions';
+                    headers = { 'Content-Type': 'application/json' };
+                    body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
+                } else if (m.inOR && !m.inKG) {
+                    // OpenRouter only — need key
+                    const key = prompt('OpenRouter API key (sk-or-...):');
+                    if (!key) { btn.disabled = false; btn.innerText = 'Send Test'; return; }
+                    url = 'https://openrouter.ai/api/v1/chat/completions';
+                    headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key.trim()}` };
+                    body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
+                } else {
+                    // Both — prefer Kilo (no key needed)
+                    url = 'https://api.kilo.ai/api/gateway/v1/chat/completions';
+                    headers = { 'Content-Type': 'application/json' };
+                    body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: msg }] });
+                }
+
+                const res = await fetch(url, { method: 'POST', headers, body });
+                const data = await res.json();
+
+                if (data.error) {
+                    respEl.innerHTML = '<span class="error">Error: ' + (data.error.message || JSON.stringify(data.error)) + '</span>';
+                } else {
+                    const text = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
+                    const usage = data.usage || {};
+                    const modelUsed = data.model || m.id;
+                    respEl.innerHTML = '<span class="success">' + text + '</span><div class="playground-note">Model: ' + modelUsed + ' | Tokens: ' + (usage.total_tokens || 'N/A') + ' | Cost: ' + (usage.cost || 0) + '</div>';
+                }
+            } catch (e) {
+                respEl.innerHTML = '<span class="error">Network error: ' + e.message + '</span>';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Send Test';
+            }
         }
 
         // Event listeners
