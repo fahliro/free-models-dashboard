@@ -453,8 +453,8 @@
         function renderModels() {
             let filtered = [...allModels];
             if (currentFilter === 'both') filtered = filtered.filter(m => m.inBoth);
-            else if (currentFilter === 'or') filtered = filtered.filter(m => m.inOR && !m.inKG);
-            else if (currentFilter === 'kg') filtered = filtered.filter(m => m.inKG && !m.inOR);
+            else if (currentFilter === 'or') filtered = filtered.filter(m => m.inOR);
+            else if (currentFilter === 'kg') filtered = filtered.filter(m => m.inKG);
 
             // Sort
             if (currentSort === 'rank') {
