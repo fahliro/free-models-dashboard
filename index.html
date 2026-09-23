@@ -652,8 +652,10 @@
 
             const score = Math.max(1, Math.round((success / hits) * 10));
             const color = scoreColor(score);
-            if (success === 0 && detail) {
-                textEl.innerHTML = `<span style="color:var(--red)">1/10</span> <span style="color:var(--text-muted);font-size:11px;">(${detail})</span>`;
+            if (success === 0) {
+                const reason = detail || 'error';
+                const short = reason.length > 24 ? reason.slice(0, 24) + '…' : reason;
+                textEl.innerHTML = `<span style="color:var(--red)">1/10</span> <span style="color:var(--text-muted);font-size:11px;">(${short})</span>`;
             } else {
                 textEl.innerHTML = `<span style="color:${color}">${score}/10</span> <span style="color:var(--text-muted);font-size:11px;">(${success}/${hits})</span>`;
             }
