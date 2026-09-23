@@ -567,7 +567,7 @@
                         <span class="stat-label">Rate Limit</span>
                         <span class="stat-value" id="rate-text-${escapeHtml(m.id)}">—</span>
                     </div>
-                    <button class="benchmark-btn" id="bench-btn-${escapeHtml(m.id)}" onclick="event.stopPropagation(); runBenchmark('${escapeHtml(m.id)}')">🧪 Rate Test</button>
+                    ${currentFilter !== 'all' ? `<button class="benchmark-btn" id="bench-btn-${escapeHtml(m.id)}" onclick="event.stopPropagation(); runBenchmark('${escapeHtml(m.id)}')">🧪 Rate Test</button>` : ''}
                 </div>`;
             }).join('');
 
@@ -629,6 +629,7 @@
             textEl.innerText = 'Running...';
 
             let success = 0;
+            let detail = '';
             const hits = 3;
 
             for (let i = 0; i < hits; i++) {
@@ -645,14 +646,18 @@
                     });
                     success++;
                 } catch (e) {
-                    // ignore, count as fail
+                    detail = e.message || 'error';
                 }
             }
 
             const score = Math.max(1, Math.round((success / hits) * 10));
             const color = scoreColor(score);
-            textEl.innerHTML = `<span style="color:${color}">${score}/10</span> <span style="color:var(--text-muted);font-size:11px;">(${success}/${hits})</span>`;
-            saveRateScore({ model_id: modelId, score, success, hits, detail: '', ts: Date.now() });
+            if (success === 0 && detail) {
+                textEl.innerHTML = `<span style="color:var(--red)">1/10</span> <span style="color:var(--text-muted);font-size:11px;">(${detail})</span>`;
+            } else {
+                textEl.innerHTML = `<span style="color:${color}">${score}/10</span> <span style="color:var(--text-muted);font-size:11px;">(${success}/${hits})</span>`;
+            }
+            saveRateScore({ model_id: modelId, score, success, hits, detail, ts: Date.now() });
             btn.innerText = '🧪 Rate Test';
             btn.disabled = false;
         }
