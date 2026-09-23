@@ -499,18 +499,8 @@
                 `;
 
                 loadRateScores();
-                autoBenchmarkVisible();
             } catch (e) {
                 document.getElementById('models-grid').innerHTML = `<div class="error">❌ Error loading data: ${e.message}<br>Silakan refresh halaman.</div>`;
-            }
-        }
-
-        async function autoBenchmarkVisible() {
-            const filtered = [...allModels];
-            if (!filtered.length) return;
-            const targets = filtered.slice(0, 8);
-            for (const m of targets) {
-                await runBenchmark(m.id);
             }
         }
 
@@ -577,6 +567,7 @@
                         <span class="stat-label">Rate Limit</span>
                         <span class="stat-value" id="rate-text-${escapeHtml(m.id)}">—</span>
                     </div>
+                    <button class="benchmark-btn" id="bench-btn-${escapeHtml(m.id)}" onclick="event.stopPropagation(); runBenchmark('${escapeHtml(m.id)}')">🧪 Rate Test</button>
                 </div>`;
             }).join('');
 
@@ -628,9 +619,12 @@
             const m = allModels.find(x => x.id === modelId);
             if (!m) return;
 
+            const btn = document.getElementById('bench-btn-' + modelId);
             const textEl = document.getElementById('rate-text-' + modelId);
-            if (!textEl) return;
+            if (!btn || !textEl) return;
 
+            btn.disabled = true;
+            btn.innerText = 'Benchmarking...';
             textEl.innerText = 'Running...';
 
             let success = 0;
@@ -658,6 +652,8 @@
             const color = scoreColor(score);
             textEl.innerHTML = `<span style="color:${color}">${score}/10</span> <span style="color:var(--text-muted);font-size:11px;">(${success}/${hits})</span>`;
             saveRateScore({ model_id: modelId, score, success, hits, detail: '', ts: Date.now() });
+            btn.innerText = '🧪 Rate Test';
+            btn.disabled = false;
         }
 
         async function runTestInner(modelId, index) {
