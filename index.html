@@ -593,19 +593,28 @@
             }
         }
 
-        const RATE_SCORES_URL = 'rate-scores.json';
-        let rateScores = {};
+        const RATE_SCORES_KEY = 'free-models-rate-scores';
 
-        async function loadRateScores() {
+        function loadRateScores() {
             try {
-                const res = await fetch(RATE_SCORES_URL, {cache: 'no-store'});
-                if (!res.ok) throw new Error('no rate scores');
-                const data = await res.json();
-                rateScores = Object.fromEntries((data.results || []).map(r => [r.model_id, r]));
+                const raw = localStorage.getItem(RATE_SCORES_KEY);
+                if (raw) rateScores = JSON.parse(raw);
             } catch (e) {
                 console.warn('Rate scores unavailable:', e.message);
             }
             renderModels();
+        }
+
+        function saveRateScore(result) {
+            try {
+                const raw = localStorage.getItem(RATE_SCORES_KEY);
+                const data = raw ? JSON.parse(raw) : {};
+                data[result.model_id] = result;
+                localStorage.setItem(RATE_SCORES_KEY, JSON.stringify(data));
+                rateScores = data;
+            } catch (e) {
+                console.warn('Cannot save rate score:', e.message);
+            }
         }
 
         function scoreColor(score) {
@@ -648,6 +657,7 @@
             const score = Math.max(1, Math.round((success / hits) * 10));
             const color = scoreColor(score);
             textEl.innerHTML = `<span style="color:${color}">${score}/10</span> <span style="color:var(--text-muted);font-size:11px;">(${success}/${hits})</span>`;
+            saveRateScore({ model_id: modelId, score, success, hits, detail: '', ts: Date.now() });
         }
 
         async function runTestInner(modelId, index) {
