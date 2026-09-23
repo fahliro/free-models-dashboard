@@ -574,7 +574,8 @@
             for (const m of filtered) {
                 const el = document.getElementById('rate-text-' + m.id);
                 if (!el) continue;
-                const r = rateScores[m.id];
+                const gateway = (currentFilter === 'kg' || (!m.inOR && m.inKG)) ? 'kilo' : 'openrouter';
+                const r = rateScores[rateKey(m.id, gateway)];
                 if (!r) {
                     el.innerHTML = '—';
                     continue;
@@ -586,6 +587,10 @@
 
         const RATE_SCORES_KEY = 'free-models-rate-scores';
         let rateScores = {};
+
+        function rateKey(modelId, gateway) {
+            return gateway + ':' + modelId;
+        }
 
         function loadRateScores() {
             try {
@@ -601,7 +606,8 @@
             try {
                 const raw = localStorage.getItem(RATE_SCORES_KEY);
                 const data = raw ? JSON.parse(raw) : {};
-                data[result.model_id] = result;
+                const key = rateKey(result.model_id, result.gateway);
+                data[key] = result;
                 localStorage.setItem(RATE_SCORES_KEY, JSON.stringify(data));
                 rateScores = data;
             } catch (e) {
@@ -631,6 +637,7 @@
             let success = 0;
             let detail = '';
             const hits = 3;
+            const gateway = (currentFilter === 'kg' || (!m.inOR && m.inKG)) ? 'kilo' : 'openrouter';
 
             for (let i = 0; i < hits; i++) {
                 try {
@@ -659,7 +666,7 @@
             } else {
                 textEl.innerHTML = `<span style="color:${color}">${score}/10</span> <span style="color:var(--text-muted);font-size:11px;">(${success}/${hits})</span>`;
             }
-            saveRateScore({ model_id: modelId, score, success, hits, detail, ts: Date.now() });
+            saveRateScore({ model_id: modelId, gateway, score, success, hits, detail, ts: Date.now() });
             btn.innerText = '🧪 Rate Test';
             btn.disabled = false;
         }
