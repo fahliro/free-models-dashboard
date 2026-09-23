@@ -230,6 +230,15 @@
         .test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .playground-note { color: var(--text-muted); font-size: 11px; margin-bottom: 8px; }
         .playground-response { margin-top: 12px; padding: 12px; background: #0a0a0d; border: 1px solid var(--card-border); border-radius: 8px; font-size: 13px; line-height: 1.5; min-height: 60px; }
+        .rate-score { margin-top: 10px; padding: 10px; background: #0a0a0d; border: 1px solid var(--card-border); border-radius: 8px; }
+        .rate-score .score-label { font-size: 12px; color: var(--text-muted); }
+        .rate-score .score-value { font-size: 22px; font-weight: bold; }
+        .rate-score .score-bar { height: 8px; background: #22222a; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+        .rate-score .score-bar > div { height: 100%; width: 0%; border-radius: 4px; }
+        .benchmark-btn { background: #111118; color: var(--text); border: 1px solid var(--card-border); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 12px; font-family: inherit; }
+        .benchmark-btn:hover { border-color: var(--accent); background: #1d1d28; }
+        .benchmark-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .benchmark-note { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -554,8 +563,15 @@
                         <span class="stat-label">Rank Score</span>
                         <span class="stat-value">${m.rankScore.toFixed(1)}</span>
                     </div>
+                    <div class="stat-row rate-limit-row" id="rate-${escapeHtml(m.id)}">
+                        <span class="stat-label">Rate Limit</span>
+                        <span class="stat-value rate-score-text" id="rate-text-${escapeHtml(m.id)}">—</span>
+                    </div>
+                    <button class="benchmark-btn" id="bench-btn-${escapeHtml(m.id)}" onclick="event.stopPropagation(); runBenchmark('${escapeHtml(m.id)}')">🧪 Rate Test</button>
                 </div>`;
             }).join('');
+
+            filtered.forEach(m => loadCachedRate(m.id));
         }
 
         function showModal(modelId) {
@@ -729,6 +745,107 @@
         window.onclick = function(e) {
             if (e.target === document.getElementById('model-modal')) closeModal();
         };
+
+        function scoreColor(score) {
+            if (score >= 8) return 'var(--green)';
+            if (score >= 5) return 'var(--amber)';
+            return 'var(--red)';
+        }
+
+        async function runBenchmark(modelId) {
+            const m = allModels.find(x => x.id === modelId);
+            if (!m) return;
+
+            const btn = document.getElementById('bench-btn-' + modelId);
+            const textEl = document.getElementById('rate-text-' + modelId);
+            if (!btn || !textEl) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Benchmarking...';
+            textEl.innerText = 'Running...';
+
+            let success = 0;
+            let failed = 0;
+            let detail = '';
+            const hits = 3;
+
+            for (let i = 0; i < hits; i++) {
+                try {
+                    await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error('timeout')), 30000);
+                        runTestInner(modelId, i + 1).then(res => {
+                            clearTimeout(timeout);
+                            resolve(res);
+                        }).catch(err => {
+                            clearTimeout(timeout);
+                            reject(err);
+                        });
+                    });
+                    success++;
+                } catch (e) {
+                    failed++;
+                    detail += (detail ? ' | ' : '') + 'H' + (i+1) + ':429/err';
+                }
+            }
+
+            const ratio = success / hits;
+            const score = Math.max(1, Math.round(ratio * 10));
+            const color = scoreColor(score);
+
+            textEl.innerHTML = `<span style="color:${color}">${score}/10</span> <span style="color:var(--text-muted);font-size:11px;">(${success}/${hits})</span>`;
+            btn.innerText = '🧪 Rate Test';
+            btn.disabled = false;
+
+            const cacheKey = 'rate-' + modelId;
+            try { localStorage.setItem(cacheKey, JSON.stringify({ score, success, failed, hits, detail, ts: Date.now() })); } catch(e){}
+        }
+
+        function loadCachedRate(modelId) {
+            const textEl = document.getElementById('rate-text-' + modelId);
+            if (!textEl) return;
+            try {
+                const raw = localStorage.getItem('rate-' + modelId);
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                const color = scoreColor(parsed.score);
+                textEl.innerHTML = `<span style="color:${color}">${parsed.score}/10</span> <span style="color:var(--text-muted);font-size:11px;">(cached)</span>`;
+            } catch(e) {}
+        }
+
+        async function runTestInner(modelId, index) {
+            const m = allModels.find(x => x.id === modelId);
+            if (!m) throw new Error('model not found');
+
+            let url, headers, body, gateway = '';
+            if (currentFilter === 'kg' || (!m.inOR && m.inKG)) {
+                const kgKey = getStoredKgKey();
+                url = 'https://cors-proxy.fadlicode-mail.workers.dev/kilo/chat';
+                headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+                body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: 'Say hi in 5 words or less.' }] });
+                if (kgKey) headers['Authorization'] = 'Bearer ' + kgKey;
+                gateway = 'Kilo';
+            } else {
+                const keyInput = document.getElementById('or-key-input');
+                const storedKey = getStoredOrKey();
+                const key = keyInput ? (keyInput.value.trim() || storedKey) : storedKey;
+                if (!key) throw new Error('missing_or_key');
+                url = 'https://openrouter.ai/api/v1/chat/completions';
+                headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key };
+                body = JSON.stringify({ model: m.id, messages: [{ role: 'user', content: 'Say hi in 5 words or less.' }] });
+                gateway = 'OpenRouter';
+            }
+
+            const res = await fetch(url, { method: 'POST', headers, body });
+            const data = await res.json();
+            if (data.error) {
+                const err = data.error;
+                const code = err.code || res.status;
+                if (code === 429 || (err.message && err.message.toLowerCase().includes('rate limit'))) throw new Error('rate_limited');
+                if (code === 401 || code === 'auth_required') throw new Error('auth_error');
+                throw new Error('provider_error');
+            }
+            return data;
+        }
     </script>
 </body>
 </html>
